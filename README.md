@@ -1,65 +1,74 @@
-# demo-ecommerce-duplicate
+# demo-ecommerce-duplicate ![Grade F](https://img.shields.io/badge/Grade-F-red)
 
-## Overview
-This variant demonstrates a scenario where both Meta Pixel and Conversions API (CAPI) events are fired for every user action, but without any deduplication mechanism. This results in event duplication and inflated reporting. This is part of a collection of demo e-commerce sites that showcase different levels of Meta Pixel and Conversions API (CAPI) implementation quality. Each variant is deployed on GitHub Pages.
+This variant demonstrates one of the most common and damaging real-world bugs in a Meta Conversions API setup: **event duplication**. Every user action fires twice—once via the Meta Pixel (client-side) and once via a direct client-side HTTP call to the Conversions API (server-side)—but with different `event_id` parameters. This critical mistake makes it impossible for Meta's systems to deduplicate the events, leading to inflated event counts (2x), corrupted ad campaign optimization, and unreliable measurement.
 
-**Live Site:** https://mishaberman.github.io/demo-ecommerce-duplicate/
-**Quality Grade:** D
+### Quick Facts
 
-## Meta Pixel Setup
+| Attribute | Value |
+|---|---|
+| **Pixel ID** | `1684145446350033` |
+| **CAPI Method** | Client-side direct HTTP |
+| **Grade** | F |
+| **Live Site** | [https://mishaberman.github.io/demo-ecommerce-duplicate/](https://mishaberman.github.io/demo-ecommerce-duplicate/) |
+| **GitHub Repo** | [https://github.com/mishaberman/demo-ecommerce-duplicate](https://github.com/mishaberman/demo-ecommerce-duplicate) |
 
-### Base Pixel Code
-- **Pixel ID:** 1684145446350033
-- **Location:** Loaded in the `<head>` tag of `index.html`.
-- **Noscript Fallback:** The `<noscript>` tag is included to capture traffic from browsers with JavaScript disabled.
+### What's Implemented
 
-### Advanced Matching
-- **User Data:** No user data is passed to `fbq(\'init\', ...)`.
-- **setUserData:** The `setUserData` function is a no-op and does not send any user data.
+- [x] Meta Pixel base code
+- [x] Conversions API (CAPI) events fired via client-side HTTP
+- [x] `fbp` and `fbc` cookies are present
+- [x] Data Processing Options (DPO) for CCPA/GDPR compliance
+- [x] Standard events: `ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`, `Lead`, `CompleteRegistration`
 
-## Conversions API (CAPI) Setup
+### What's Missing or Broken
 
-### Method
-This variant uses a **Client-Side Direct HTTP** method. CAPI events are sent directly from the user\'s browser to the Graph API endpoint using `fetch()`.
+- [ ] **CRITICAL: Event Deduplication is Broken**: Pixel and CAPI events fire with different `event_id`s, causing 2x event counts.
+- [ ] **CRITICAL: Access Token Exposed**: The CAPI access token is visible in the public frontend JavaScript, a major security risk.
+- [ ] **No Advanced Matching**: No user data (email, phone, etc.) is sent to improve Event Match Quality.
+- [ ] **Missing `Search` Event**: The `Search` event does not fire on the search results page.
+- [ ] **No Server-Side Implementation**: All CAPI calls are made from the client, defeating the purpose of a server-to-server connection.
 
-### Implementation Details
-- **Endpoint:** Events are sent to `https://graph.facebook.com/v13.0/1684145446350033/events`.
-- **Access Token:** The access token is **exposed** in the client-side JavaScript code.
-- **User Data:** Only `fbp` and `fbc` are sent in the `user_data` object. No personally identifiable information (PII) is included.
-- **Hashing:** Not applicable as no PII is sent.
-- **Data Processing Options:** No data processing options (CCPA/GDPR) are included.
+### Event Coverage
 
-## Events Tracked
+This table shows which events are fired and through which channel. Note that because deduplication is broken, every event is counted twice.
 
-| Event Name | Pixel | CAPI | Parameters Sent | event_id |
-|---|---|---|---|---|
-| ViewContent | Yes | Yes | `content_ids`, `content_type`, `content_name`, `value`, `currency` | No |
-| AddToCart | Yes | Yes | `content_ids`, `content_type`, `content_name`, `value`, `currency`, `num_items` | No |
-| InitiateCheckout | Yes | Yes | `content_ids`, `content_type`, `content_name`, `value`, `currency`, `num_items` | No |
-| Purchase | Yes | Yes | `content_ids`, `content_type`, `content_name`, `value`, `currency`, `num_items` | No |
-| Lead | Yes | Yes | `content_name`, `value`, `currency` | No |
-| CompleteRegistration | Yes | Yes | `content_name`, `value`, `currency` | No |
-| Contact | Yes | Yes | `content_name` | No |
+| Event | Meta Pixel (Browser) | Conversions API (Server) |
+|---|:---:|:---:|
+| `ViewContent` | ✅ | ✅ |
+| `AddToCart` | ✅ | ✅ |
+| `InitiateCheckout` | ✅ | ✅ |
+| `Purchase` | ✅ | ✅ |
+| `Lead` | ✅ | ✅ |
+| `CompleteRegistration` | ✅ | ✅ |
+| `Search` | ❌ | ❌ |
 
-## Event Deduplication
-- **`event_id`:** No `event_id` is generated or sent with either Pixel or CAPI events.
-- **Result:** Deduplication is **broken**. Because there is no `event_id`, Meta cannot distinguish between the Pixel event and the CAPI event for the same user action. This leads to every event being counted twice.
+### Parameter Completeness
 
-## Custom Data
-- No `custom_data` fields are sent with any events.
-- No custom events are tracked.
-- `content_type` is set to `product`.
-- `content_ids` are SKU-like strings (e.g., `\'PROD123\\'`).
+This table shows which parameters are sent with each event. The implementation is basic and consistent across events.
 
-## Known Issues
-- **Event Duplication:** The primary issue is that every event is fired twice—once via the Pixel and once via CAPI—with no deduplication key. This results in a 2x inflation of all event counts.
-- **No `event_id`:** The lack of an `event_id` is the root cause of the deduplication failure.
-- **No Advanced Matching:** No user PII is collected or sent for Advanced Matching, leading to lower match quality.
+| Event | `content_type` | `content_ids` | `value` | `currency` | `content_name` | `num_items` |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| `ViewContent` | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| `AddToCart` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `InitiateCheckout`| ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `Purchase` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `Lead` | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| `CompleteRegistration`| ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
 
-## Security Considerations
-- **Exposed Access Token:** The CAPI access token is hardcoded in the client-side JavaScript, which is a major security risk.
-- **PII Hashing:** Not applicable as no PII is sent.
-- **Privacy Compliance:** No privacy compliance features like `data_processing_options` are implemented.
+### Architecture
 
----
-*This variant is part of the [Meta Pixel Quality Variants](https://github.com/mishaberman) collection for testing and educational purposes.*
+The tracking for this variant is implemented entirely in the frontend JavaScript (`assets/js/main.js`).
+
+1.  **Pixel Events**: Standard `fbq('track', ...)` calls are used for all events, firing on page load or user actions (e.g., button clicks).
+2.  **CAPI Events**: Immediately after each `fbq` call, a separate JavaScript function makes a `fetch` request directly to the Graph API endpoint (`https://graph.facebook.com/v13.0/PIXEL_ID/events`).
+3.  **Broken Deduplication**: Crucially, the `event_id` for the pixel call is generated automatically by the pixel library, while the `event_id` for the CAPI call is generated separately in the JavaScript code. Because these IDs do not match, Meta cannot deduplicate the two identical events.
+4.  **Exposed Token**: The CAPI access token is hardcoded directly in the `fetch` request, making it publicly visible to anyone inspecting the site's source code.
+
+### How to Use This Variant
+
+1.  **Browse the Site**: Navigate through the product pages, add items to the cart, and complete a test purchase.
+2.  **Use Meta Pixel Helper**: Install the [Meta Pixel Helper](https://chrome.google.com/webstore/detail/meta-pixel-helper/fdgfkebogiimcoedlicjlajpkdmockpc) Chrome extension to see the Pixel events fire in real-time.
+3.  **Check Browser DevTools**: Open the Network tab in your browser's developer tools and filter for `facebook.com`. You will see two requests for every event:
+    *   A `GET` request from the Pixel (`/tr?`)
+    *   A `POST` request to the Graph API (`/events?`)
+4.  **Inspect Event IDs**: Observe that the `eventID` in the Pixel payload and the `event_id` in the CAPI payload are different, confirming the duplication issue.
