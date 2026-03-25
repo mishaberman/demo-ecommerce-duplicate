@@ -160,11 +160,12 @@ function sendCAPIEvent(eventName: string, eventData: Record<string, unknown>) {
   };
 
   const endpoint = `https://graph.facebook.com/v18.0/${PIXEL_ID}/events`;
+  console.log(`[CAPI] Sending ${eventName} (NO event_id — duplicate risk!) — payload:`, JSON.parse(JSON.stringify(payload)));
   fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  }).then(res => res.json()).then(result => {
+    console.log(`[CAPI] ${eventName} — response:`, result);
   }).catch(err => console.error(`[CAPI] Failed:`, err));
-  
-  console.log(`[CAPI] Sent ${eventName} (NO event_id — duplicate risk!)`, payload);
 }
